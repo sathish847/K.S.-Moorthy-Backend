@@ -113,7 +113,7 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
 
   if (!youtubeUrl || youtubeUrl.trim() === "") {
     errors.push({
-      msg: "YouTube URL is required",
+      msg: "YouTube URL or Instagram link is required",
       param: "youtubeUrl",
       location: "body",
     });

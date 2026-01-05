@@ -16,16 +16,19 @@ const gallerySchema = new mongoose.Schema(
     },
     youtubeUrl: {
       type: String,
-      required: [true, "Please add a YouTube URL"],
+      required: [true, "Please add a YouTube URL or Instagram link"],
       trim: true,
       validate: {
         validator: function (v) {
-          // Basic YouTube URL validation
+          // YouTube URL validation
           const youtubeRegex =
             /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)[a-zA-Z0-9_-]{11}/;
-          return youtubeRegex.test(v);
+          // Instagram URL validation
+          const instagramRegex =
+            /^(https?:\/\/)?(www\.)?instagram\.com\/(p|reel|tv)\/[a-zA-Z0-9_-]+/;
+          return youtubeRegex.test(v) || instagramRegex.test(v);
         },
-        message: "Please provide a valid YouTube URL",
+        message: "Please provide a valid YouTube URL or Instagram link",
       },
     },
     slug: {
