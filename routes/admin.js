@@ -15,8 +15,8 @@ router.use(authorize("admin"));
 router.get("/users", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+    const skip = limit ? (page - 1) * limit : 0;
 
     const users = await User.find({})
       .select("-password")

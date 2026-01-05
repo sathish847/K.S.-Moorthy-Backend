@@ -132,8 +132,8 @@ router.post(
 router.get("/", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+    const skip = limit ? (page - 1) * limit : 0;
 
     const query = {};
 
@@ -753,8 +753,8 @@ router.delete("/:id", protect, authorize("admin"), async (req, res) => {
 router.get("/admin/all", protect, authorize("admin"), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+    const skip = limit ? (page - 1) * limit : 0;
 
     const events = await Event.find()
       .populate("author", "name email")
