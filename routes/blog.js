@@ -92,7 +92,7 @@ router.get("/", async (req, res) => {
 
     const blogs = await Blog.find(query)
       .populate("author", "name email")
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");
@@ -177,6 +177,7 @@ router.post(
       mediumLink,
       mediumLinkEnabled,
       status,
+      order,
     } = req.body;
 
     // Validate required fields
@@ -264,6 +265,7 @@ router.post(
             ? JSON.parse(mediumLinkEnabled)
             : true,
         status: status || "active",
+        order: order || 0,
         author: req.user._id,
       });
 
@@ -315,6 +317,7 @@ router.patch(
         mediumLink,
         mediumLinkEnabled,
         status,
+        order,
       } = req.body;
 
       // Handle image update - if new image file is uploaded, upload to Cloudinary
@@ -375,6 +378,7 @@ router.patch(
             : JSON.parse(mediumLinkEnabled);
       }
       if (status !== undefined) blog.status = status;
+      if (order !== undefined) blog.order = order;
 
       // Regenerate slug if title was updated
       if (title !== undefined) {
@@ -424,6 +428,7 @@ router.put(
         mediumLink,
         mediumLinkEnabled,
         status,
+        order,
       } = req.body;
 
       // Handle image update - if new image file is uploaded, upload to Cloudinary
@@ -484,6 +489,7 @@ router.put(
             : JSON.parse(mediumLinkEnabled);
       }
       if (status !== undefined) blog.status = status;
+      if (order !== undefined) blog.order = order;
 
       // Regenerate slug if title was updated
       if (title !== undefined) {
@@ -577,7 +583,7 @@ router.get("/admin/all", protect, authorize("admin"), async (req, res) => {
 
     const blogs = await Blog.find()
       .populate("author", "name email")
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");

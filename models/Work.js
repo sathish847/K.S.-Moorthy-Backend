@@ -22,6 +22,10 @@ const workSchema = new mongoose.Schema(
       enum: ["active", "inactive"],
       default: "active",
     },
+    order: {
+      type: Number,
+      default: 0,
+    },
     author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

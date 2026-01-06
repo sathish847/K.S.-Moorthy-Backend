@@ -143,7 +143,7 @@ router.get("/", async (req, res) => {
     }
 
     const services = await Service.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");
@@ -225,7 +225,7 @@ router.post(
     // Manual validation for multipart/form-data
     const errors = [];
 
-    const { title, hero_image, images, paragraphs, status } = req.body;
+    const { title, hero_image, images, paragraphs, status, order } = req.body;
 
     // Validate required fields
     if (!title || title.trim() === "") {
@@ -355,6 +355,7 @@ router.post(
         images: finalImages,
         paragraphs: parsedParagraphs,
         status: status || "active",
+        order: order || 0,
       });
 
       // Generate ID before saving
@@ -399,7 +400,7 @@ router.patch(
         return res.status(404).json({ message: "Service not found" });
       }
 
-      const { title, hero_image, images, paragraphs, status } = req.body;
+      const { title, hero_image, images, paragraphs, status, order } = req.body;
 
       // Handle hero image update - if new image file is uploaded, upload to Cloudinary
       let heroImageUrl = service.hero_image; // Keep existing image by default
@@ -457,6 +458,7 @@ router.patch(
           : JSON.parse(paragraphs);
       }
       if (status !== undefined) service.status = status;
+      if (order !== undefined) service.order = order;
 
       await service.save();
 
@@ -495,7 +497,7 @@ router.put(
         return res.status(404).json({ message: "Service not found" });
       }
 
-      const { title, hero_image, images, paragraphs, status } = req.body;
+      const { title, hero_image, images, paragraphs, status, order } = req.body;
 
       // Handle hero image update - if new image file is uploaded, upload to Cloudinary
       let heroImageUrl = service.hero_image; // Keep existing image by default
@@ -553,6 +555,7 @@ router.put(
           : JSON.parse(paragraphs);
       }
       if (status !== undefined) service.status = status;
+      if (order !== undefined) service.order = order;
 
       await service.save();
 
@@ -629,7 +632,7 @@ router.get("/admin/all", protect, authorize("admin"), async (req, res) => {
     const skip = limit ? (page - 1) * limit : 0;
 
     const services = await Service.find()
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");

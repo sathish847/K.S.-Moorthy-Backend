@@ -86,7 +86,7 @@ router.get("/", async (req, res) => {
 
     const works = await Work.find(query)
       .populate("author", "name email")
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");
@@ -150,7 +150,7 @@ router.post(
     // Manual validation for multipart/form-data
     const errors = [];
 
-    const { title, category, image, status } = req.body;
+    const { title, category, image, status, order } = req.body;
 
     // Validate required fields
     if (!title || title.trim() === "") {
@@ -199,6 +199,7 @@ router.post(
         category,
         image: imageUrl,
         status: status || "active",
+        order: order || 0,
         author: req.user._id,
       });
 
@@ -233,7 +234,7 @@ router.patch(
         return res.status(404).json({ message: "Work not found" });
       }
 
-      const { title, category, image, status } = req.body;
+      const { title, category, image, status, order } = req.body;
 
       // Handle image update - if new image file is uploaded, upload to Cloudinary
       let imageUrl = work.image; // Keep existing image by default
@@ -274,6 +275,7 @@ router.patch(
       if (category !== undefined) work.category = category;
       work.image = imageUrl; // Always update image (either new upload, new URL, or existing)
       if (status !== undefined) work.status = status;
+      if (order !== undefined) work.order = order;
 
       await work.save();
 
@@ -304,7 +306,7 @@ router.put(
         return res.status(404).json({ message: "Work not found" });
       }
 
-      const { title, category, image, status } = req.body;
+      const { title, category, image, status, order } = req.body;
 
       // Handle image update - if new image file is uploaded, upload to Cloudinary
       let imageUrl = work.image; // Keep existing image by default
@@ -403,7 +405,7 @@ router.get("/admin/all", protect, authorize("admin"), async (req, res) => {
 
     const works = await Work.find()
       .populate("author", "name email")
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");

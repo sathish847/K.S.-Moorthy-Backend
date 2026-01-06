@@ -22,7 +22,7 @@ router.get("/", async (req, res) => {
 
     const gallery = await Gallery.find(query)
       .populate("author", "name email")
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");
@@ -92,7 +92,7 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
   // Manual validation
   const errors = [];
 
-  const { title, description, youtubeUrl, status } = req.body;
+  const { title, description, youtubeUrl, status, order } = req.body;
 
   // Validate required fields
   if (!title || title.trim() === "") {
@@ -129,6 +129,7 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
       description,
       youtubeUrl,
       status: status || "active",
+      order: order || 0,
       author: req.user._id,
     });
 
@@ -163,13 +164,18 @@ router.patch("/:id", protect, authorize("admin"), async (req, res) => {
       return res.status(404).json({ message: "Gallery item not found" });
     }
 
-    const { title, description, youtubeUrl, status } = req.body;
+    const { title, description, youtubeUrl, status, order } = req.body;
 
     // Update fields if provided
     if (title !== undefined) galleryItem.title = title;
     if (description !== undefined) galleryItem.description = description;
     if (youtubeUrl !== undefined) galleryItem.youtubeUrl = youtubeUrl;
     if (status !== undefined) galleryItem.status = status;
+    if (order !== undefined) galleryItem.order = order;
+    if (order !== undefined) galleryItem.order = order;
+    if (order !== undefined) galleryItem.order = order;
+    if (order !== undefined) galleryItem.order = order;
+    if (order !== undefined) galleryItem.order = order;
 
     // Regenerate slug if title was updated
     if (title !== undefined) {
@@ -203,7 +209,7 @@ router.put("/:id", protect, authorize("admin"), async (req, res) => {
       return res.status(404).json({ message: "Gallery item not found" });
     }
 
-    const { title, description, youtubeUrl, status } = req.body;
+    const { title, description, youtubeUrl, status, order } = req.body;
 
     // Update fields if provided
     if (title !== undefined) galleryItem.title = title;
@@ -291,7 +297,7 @@ router.get("/admin/all", protect, authorize("admin"), async (req, res) => {
 
     const gallery = await Gallery.find()
       .populate("author", "name email")
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");

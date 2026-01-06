@@ -159,7 +159,7 @@ router.get("/", async (req, res) => {
 
     const events = await Event.find(query)
       .populate("author", "name email")
-      .sort({ displayDate: -1 })
+      .sort({ order: 1, displayDate: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");
@@ -246,6 +246,7 @@ router.post(
       duration,
       knowMoreLink,
       knowMoreLinkEnabled,
+      order,
     } = req.body;
 
     // Validate required fields
@@ -389,6 +390,7 @@ router.post(
           knowMoreLinkEnabled !== undefined
             ? JSON.parse(knowMoreLinkEnabled)
             : true,
+        order: order || 0,
         author: req.user._id,
       });
 
@@ -448,6 +450,7 @@ router.patch(
         duration,
         knowMoreLink,
         knowMoreLinkEnabled,
+        order,
       } = req.body;
 
       // Handle main image update
@@ -535,6 +538,7 @@ router.patch(
             ? knowMoreLinkEnabled
             : JSON.parse(knowMoreLinkEnabled);
       }
+      if (order !== undefined) event.order = order;
 
       // Regenerate slug if title was updated
       if (title !== undefined) {
@@ -591,6 +595,7 @@ router.put(
         duration,
         knowMoreLink,
         knowMoreLinkEnabled,
+        order,
       } = req.body;
 
       // Handle main image update
@@ -678,6 +683,7 @@ router.put(
             ? knowMoreLinkEnabled
             : JSON.parse(knowMoreLinkEnabled);
       }
+      if (order !== undefined) event.order = order;
 
       // Regenerate slug if title was updated
       if (title !== undefined) {
@@ -758,7 +764,7 @@ router.get("/admin/all", protect, authorize("admin"), async (req, res) => {
 
     const events = await Event.find()
       .populate("author", "name email")
-      .sort({ displayDate: -1 })
+      .sort({ order: 1, displayDate: -1 })
       .skip(skip)
       .limit(limit)
       .select("-__v");

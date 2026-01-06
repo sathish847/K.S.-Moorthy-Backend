@@ -60,6 +60,10 @@ const gallerySchema = new mongoose.Schema(
       enum: ["active", "inactive"],
       default: "active",
     },
+    order: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
