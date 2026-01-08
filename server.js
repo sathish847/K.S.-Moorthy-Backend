@@ -8,6 +8,7 @@ const hpp = require("hpp");
 const cookieParser = require("cookie-parser");
 const csrf = require("csurf");
 const dotenv = require("dotenv");
+const mongoose = require("mongoose");
 const connectDB = require("./config/database");
 
 // Load environment variables
@@ -61,9 +62,17 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Database connection middleware for serverless
+// Only connect if not already connected (for serverless cold starts)
 app.use(async (req, res, next) => {
   try {
-    await connectDB();
+    // In production/serverless, always ensure connection
+    // In development, connection is established at startup
+    if (
+      process.env.NODE_ENV === "production" ||
+      !mongoose.connection.readyState
+    ) {
+      await connectDB();
+    }
     next();
   } catch (error) {
     console.error("Database connection middleware error:", error);
