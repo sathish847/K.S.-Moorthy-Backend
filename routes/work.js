@@ -63,6 +63,44 @@ router.post(
   }
 );
 
+// @desc    Randomize order of all works
+// @route   GET /api/works/randomize-order
+// @access  Private (Admin only)
+router.get(
+  "/randomize-order",
+  protect,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      // Get all works
+      const works = await Work.find();
+
+      if (works.length === 0) {
+        return res.status(404).json({ message: "No works found to randomize" });
+      }
+
+      // Create array of work IDs and shuffle them
+      const workIds = works.map((work) => work._id);
+      const shuffledIds = workIds.sort(() => Math.random() - 0.5);
+
+      // Update orders starting from 41
+      const updatePromises = shuffledIds.map((id, index) =>
+        Work.findByIdAndUpdate(id, { order: 41 + index })
+      );
+
+      await Promise.all(updatePromises);
+
+      res.json({
+        message: `Successfully randomized order for ${works.length} works`,
+        totalWorks: works.length,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
 // @desc    Get all published works
 // @route   GET /api/works
 // @access  Public
