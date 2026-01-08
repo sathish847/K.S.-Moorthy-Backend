@@ -13,8 +13,22 @@ const connectDB = require("./config/database");
 // Load environment variables
 dotenv.config();
 
-// Connect to database
-connectDB();
+// Global database connection cache for serverless
+let isConnected = false;
+
+const connectToDatabase = async () => {
+  if (isConnected) {
+    return;
+  }
+
+  try {
+    await connectDB();
+    isConnected = true;
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    throw error;
+  }
+};
 
 const app = express();
 
@@ -63,6 +77,17 @@ app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Database connection middleware for serverless
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error("Database connection middleware error:", error);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
+
 // Cookie parsing middleware
 app.use(cookieParser());
 
@@ -105,10 +130,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Something went wrong!" });
 });
 
-const PORT = process.env.PORT || 5000;
+// For Vercel serverless functions, export the app directly
+// For local development, you can still run with node server.js
+if (require.main === module) {
+  // Local development
+  const PORT = process.env.PORT || 5000;
+  connectToDatabase().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  });
+}
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
+// Export for Vercel serverless functions
 module.exports = app;
