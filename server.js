@@ -13,23 +13,6 @@ const connectDB = require("./config/database");
 // Load environment variables
 dotenv.config();
 
-// Global database connection cache for serverless
-let isConnected = false;
-
-const connectToDatabase = async () => {
-  if (isConnected) {
-    return;
-  }
-
-  try {
-    await connectDB();
-    isConnected = true;
-  } catch (error) {
-    console.error("Database connection failed:", error);
-    throw error;
-  }
-};
-
 const app = express();
 
 // Security middleware
@@ -80,7 +63,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Database connection middleware for serverless
 app.use(async (req, res, next) => {
   try {
-    await connectToDatabase();
+    await connectDB();
     next();
   } catch (error) {
     console.error("Database connection middleware error:", error);
@@ -135,7 +118,7 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   // Local development
   const PORT = process.env.PORT || 5000;
-  connectToDatabase().then(() => {
+  connectDB().then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
