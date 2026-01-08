@@ -88,12 +88,12 @@ app.use((req, res, next) => {
 // Routes
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
-app.use("/api/blogs", require("./routes/blog"));
-app.use("/api/events", require("./routes/event"));
+// app.use("/api/blogs", require("./routes/blog"));
+// app.use("/api/events", require("./routes/event"));
 app.use("/api/gallery", require("./routes/gallery"));
-app.use("/api/hero-sliders", require("./routes/heroSlider"));
-app.use("/api/works", require("./routes/work"));
-app.use("/api/services", require("./routes/service"));
+// app.use("/api/hero-sliders", require("./routes/heroSlider"));
+// app.use("/api/works", require("./routes/work"));
+// app.use("/api/services", require("./routes/service"));
 
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Maheesh Portfolio Backend API" });

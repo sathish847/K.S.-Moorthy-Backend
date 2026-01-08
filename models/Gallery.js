@@ -2,59 +2,46 @@ const mongoose = require("mongoose");
 
 const gallerySchema = new mongoose.Schema(
   {
-    title: {
+    title_en: {
       type: String,
-      required: [true, "Please add a title"],
+      required: [true, "Please add an English title"],
       trim: true,
-      maxlength: [200, "Title cannot be more than 200 characters"],
+      maxlength: [200, "English title cannot be more than 200 characters"],
     },
-    description: {
+    description_en: {
       type: String,
-      required: [true, "Please add a description"],
+      required: [true, "Please add an English description"],
       trim: true,
-      maxlength: [1000, "Description cannot be more than 1000 characters"],
+      maxlength: [
+        1000,
+        "English description cannot be more than 1000 characters",
+      ],
     },
-    youtubeUrl: {
+    title_ta: {
       type: String,
-      required: [true, "Please add a YouTube URL or Instagram link"],
+      required: [true, "Please add a Tamil title"],
       trim: true,
-      validate: {
-        validator: function (v) {
-          // YouTube URL validation
-          const youtubeRegex =
-            /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)[a-zA-Z0-9_-]{11}/;
-          // Instagram URL validation
-          const instagramRegex =
-            /^(https?:\/\/)?(www\.)?instagram\.com\/(p|reel|tv)\/[a-zA-Z0-9_-]+/;
-          return youtubeRegex.test(v) || instagramRegex.test(v);
-        },
-        message: "Please provide a valid YouTube URL or Instagram link",
-      },
+      maxlength: [200, "Tamil title cannot be more than 200 characters"],
     },
-    slug: {
+    description_ta: {
       type: String,
-      unique: true,
-      lowercase: true,
+      required: [true, "Please add a Tamil description"],
+      trim: true,
+      maxlength: [
+        1000,
+        "Tamil description cannot be more than 1000 characters",
+      ],
     },
-    isPublished: {
-      type: Boolean,
-      default: false,
+    image: {
+      type: String,
+      required: [true, "Please add an image"],
+      trim: true,
     },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
+    link: {
+      type: String,
+      default: "",
+      trim: true,
     },
-    views: {
-      type: Number,
-      default: 0,
-    },
-    likes: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
     status: {
       type: String,
       enum: ["active", "inactive"],
@@ -70,20 +57,13 @@ const gallerySchema = new mongoose.Schema(
   }
 );
 
-// Method to generate slug from title
-gallerySchema.methods.generateSlug = function () {
-  if (this.title) {
-    this.slug = this.title
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9 ]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .trim("-");
-  }
-};
-
 // Index for better search performance
-gallerySchema.index({ title: "text", description: "text" });
-gallerySchema.index({ isPublished: 1, createdAt: -1 });
+gallerySchema.index({
+  title_en: "text",
+  description_en: "text",
+  title_ta: "text",
+  description_ta: "text",
+});
+gallerySchema.index({ status: 1, order: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Gallery", gallerySchema);

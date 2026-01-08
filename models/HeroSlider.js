@@ -91,4 +91,4 @@ const heroSliderSchema = new mongoose.Schema(
 // Index for better query performance
 heroSliderSchema.index({ status: 1, order: 1, createdAt: -1 });
 
-module.exports = mongoose.model("HeroSlider", heroSliderSchema);
+// module.exports = mongoose.model("HeroSlider", heroSliderSchema);

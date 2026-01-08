@@ -1,8 +1,27 @@
 const express = require("express");
+const multer = require("multer");
+const { body, validationResult } = require("express-validator");
 const Gallery = require("../models/Gallery");
 const { protect, authorize } = require("../middleware/auth");
+const cloudinary = require("../config/cloudinary");
 
 const router = express.Router();
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"), false);
+    }
+  },
+});
 
 // @desc    Get all published gallery items
 // @route   GET /api/gallery
@@ -21,7 +40,6 @@ router.get("/", async (req, res) => {
     }
 
     const gallery = await Gallery.find(query)
-      .populate("author", "name email")
       .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -53,16 +71,10 @@ router.get("/:id", async (req, res) => {
 
     // Check if it's a valid ObjectId
     if (req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-      galleryItem = await Gallery.findById(req.params.id).populate(
-        "author",
-        "name email"
-      );
+      galleryItem = await Gallery.findById(req.params.id);
     } else {
-      // Treat as slug
-      galleryItem = await Gallery.findOne({ slug: req.params.id }).populate(
-        "author",
-        "name email"
-      );
+      // Since we removed slug field, treat as ID only
+      galleryItem = await Gallery.findById(req.params.id);
     }
 
     if (!galleryItem) {
@@ -74,10 +86,6 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Gallery item not found" });
     }
 
-    // Increment view count
-    galleryItem.views += 1;
-    await galleryItem.save();
-
     res.json(galleryItem);
   } catch (error) {
     console.error(error);
@@ -85,160 +93,312 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// @desc    Upload image to Cloudinary
+// @route   POST /api/gallery/upload-image
+// @access  Private (Admin only)
+router.post(
+  "/upload-image",
+  protect,
+  authorize("admin"),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No image file provided" });
+      }
+
+      // Upload to Cloudinary
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "gallery-images",
+            resource_type: "image",
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+
+      res.json({
+        message: "Image uploaded successfully",
+        imageUrl: result.secure_url,
+        publicId: result.public_id,
+      });
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      res.status(500).json({ message: "Image upload failed" });
+    }
+  }
+);
+
 // @desc    Create a new gallery item
 // @route   POST /api/gallery
 // @access  Private (Admin only)
-router.post("/", protect, authorize("admin"), async (req, res) => {
-  // Manual validation
-  const errors = [];
+router.post(
+  "/",
+  protect,
+  authorize("admin"),
+  upload.single("image"),
+  async (req, res) => {
+    // Manual validation for multipart/form-data
+    const errors = [];
 
-  const { title, description, youtubeUrl, status, order } = req.body;
+    const {
+      title_en,
+      description_en,
+      title_ta,
+      description_ta,
+      image,
+      link,
+      status,
+      order,
+    } = req.body;
 
-  // Validate required fields
-  if (!title || title.trim() === "") {
-    errors.push({
-      msg: "Title is required",
-      param: "title",
-      location: "body",
-    });
-  }
+    // Validate required fields
+    if (!title_en || title_en.trim() === "") {
+      errors.push({
+        msg: "English title is required",
+        param: "title_en",
+        location: "body",
+      });
+    }
 
-  if (!description || description.trim() === "") {
-    errors.push({
-      msg: "Description is required",
-      param: "description",
-      location: "body",
-    });
-  }
+    if (!description_en || description_en.trim() === "") {
+      errors.push({
+        msg: "English description is required",
+        param: "description_en",
+        location: "body",
+      });
+    }
 
-  if (!youtubeUrl || youtubeUrl.trim() === "") {
-    errors.push({
-      msg: "YouTube URL or Instagram link is required",
-      param: "youtubeUrl",
-      location: "body",
-    });
-  }
+    if (!title_ta || title_ta.trim() === "") {
+      errors.push({
+        msg: "Tamil title is required",
+        param: "title_ta",
+        location: "body",
+      });
+    }
 
-  if (errors.length > 0) {
-    return res.status(400).json({ errors });
-  }
+    if (!description_ta || description_ta.trim() === "") {
+      errors.push({
+        msg: "Tamil description is required",
+        param: "description_ta",
+        location: "body",
+      });
+    }
 
-  try {
-    const galleryItem = new Gallery({
-      title,
-      description,
-      youtubeUrl,
-      status: status || "active",
-      order: order || 0,
-      author: req.user._id,
-    });
+    if (errors.length > 0) {
+      return res.status(400).json({ errors });
+    }
 
-    // Generate slug before saving
-    galleryItem.generateSlug();
+    try {
+      let imageUrl = image || "";
 
-    await galleryItem.save();
+      // If image file is uploaded, upload to Cloudinary
+      if (req.file) {
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: "gallery-images",
+              resource_type: "image",
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          stream.end(req.file.buffer);
+        });
+        imageUrl = result.secure_url;
+      }
 
-    const populatedGalleryItem = await Gallery.findById(
-      galleryItem._id
-    ).populate("author", "name email");
+      const galleryItem = new Gallery({
+        title_en,
+        description_en,
+        title_ta,
+        description_ta,
+        image: imageUrl,
+        link: link || "",
+        status: status || "active",
+        order: order || 0,
+      });
 
-    res.status(201).json(populatedGalleryItem);
-  } catch (error) {
-    console.error(error);
-    if (error.code === 11000) {
-      res.status(400).json({ message: "Gallery item title already exists" });
-    } else {
+      await galleryItem.save();
+
+      res.status(201).json(galleryItem);
+    } catch (error) {
+      console.error(error);
       res.status(500).json({ message: "Server error" });
     }
   }
-});
+);
 
 // @desc    Update a gallery item
 // @route   PATCH /api/gallery/:id
 // @access  Private (Admin only)
-router.patch("/:id", protect, authorize("admin"), async (req, res) => {
-  try {
-    const galleryItem = await Gallery.findById(req.params.id);
+router.patch(
+  "/:id",
+  protect,
+  authorize("admin"),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const galleryItem = await Gallery.findById(req.params.id);
 
-    if (!galleryItem) {
-      return res.status(404).json({ message: "Gallery item not found" });
-    }
+      if (!galleryItem) {
+        return res.status(404).json({ message: "Gallery item not found" });
+      }
 
-    const { title, description, youtubeUrl, status, order } = req.body;
+      const {
+        title_en,
+        description_en,
+        title_ta,
+        description_ta,
+        image,
+        link,
+        status,
+        order,
+      } = req.body;
 
-    // Update fields if provided
-    if (title !== undefined) galleryItem.title = title;
-    if (description !== undefined) galleryItem.description = description;
-    if (youtubeUrl !== undefined) galleryItem.youtubeUrl = youtubeUrl;
-    if (status !== undefined) galleryItem.status = status;
-    if (order !== undefined) galleryItem.order = order;
-    if (order !== undefined) galleryItem.order = order;
-    if (order !== undefined) galleryItem.order = order;
-    if (order !== undefined) galleryItem.order = order;
-    if (order !== undefined) galleryItem.order = order;
+      // Handle image update - if new image file is uploaded, upload to Cloudinary
+      let imageUrl = galleryItem.image; // Keep existing image by default
+      if (req.file) {
+        // Delete old image from Cloudinary if it exists
+        if (galleryItem.image) {
+          try {
+            const publicId = galleryItem.image.split("/").pop().split(".")[0];
+            await cloudinary.uploader.destroy(`gallery-images/${publicId}`);
+          } catch (cloudinaryError) {
+            console.error("Cloudinary delete error:", cloudinaryError);
+            // Don't fail the update if image deletion fails
+          }
+        }
 
-    // Regenerate slug if title was updated
-    if (title !== undefined) {
-      galleryItem.generateSlug();
-    }
+        // Upload new image to Cloudinary
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: "gallery-images",
+              resource_type: "image",
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          stream.end(req.file.buffer);
+        });
+        imageUrl = result.secure_url;
+      } else if (image !== undefined) {
+        // If image URL is provided directly (not a file), use it
+        imageUrl = image;
+      }
 
-    await galleryItem.save();
+      // Update fields if provided
+      if (title_en !== undefined) galleryItem.title_en = title_en;
+      if (description_en !== undefined)
+        galleryItem.description_en = description_en;
+      if (title_ta !== undefined) galleryItem.title_ta = title_ta;
+      if (description_ta !== undefined)
+        galleryItem.description_ta = description_ta;
+      galleryItem.image = imageUrl; // Always update image (either new upload, new URL, or existing)
+      if (link !== undefined) galleryItem.link = link;
+      if (status !== undefined) galleryItem.status = status;
+      if (order !== undefined) galleryItem.order = order;
 
-    const updatedGalleryItem = await Gallery.findById(galleryItem._id).populate(
-      "author",
-      "name email"
-    );
+      await galleryItem.save();
 
-    res.json(updatedGalleryItem);
-  } catch (error) {
-    console.error(error);
-    if (error.code === 11000) {
-      res.status(400).json({ message: "Gallery item title already exists" });
-    } else {
+      res.json(galleryItem);
+    } catch (error) {
+      console.error(error);
       res.status(500).json({ message: "Server error" });
     }
   }
-});
+);
 
 // Support PUT method as well for backward compatibility
-router.put("/:id", protect, authorize("admin"), async (req, res) => {
-  try {
-    const galleryItem = await Gallery.findById(req.params.id);
+router.put(
+  "/:id",
+  protect,
+  authorize("admin"),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const galleryItem = await Gallery.findById(req.params.id);
 
-    if (!galleryItem) {
-      return res.status(404).json({ message: "Gallery item not found" });
-    }
+      if (!galleryItem) {
+        return res.status(404).json({ message: "Gallery item not found" });
+      }
 
-    const { title, description, youtubeUrl, status, order } = req.body;
+      const {
+        title_en,
+        description_en,
+        title_ta,
+        description_ta,
+        image,
+        link,
+        status,
+        order,
+      } = req.body;
 
-    // Update fields if provided
-    if (title !== undefined) galleryItem.title = title;
-    if (description !== undefined) galleryItem.description = description;
-    if (youtubeUrl !== undefined) galleryItem.youtubeUrl = youtubeUrl;
-    if (status !== undefined) galleryItem.status = status;
+      // Handle image update - if new image file is uploaded, upload to Cloudinary
+      let imageUrl = galleryItem.image; // Keep existing image by default
+      if (req.file) {
+        // Delete old image from Cloudinary if it exists
+        if (galleryItem.image) {
+          try {
+            const publicId = galleryItem.image.split("/").pop().split(".")[0];
+            await cloudinary.uploader.destroy(`gallery-images/${publicId}`);
+          } catch (cloudinaryError) {
+            console.error("Cloudinary delete error:", cloudinaryError);
+            // Don't fail the update if image deletion fails
+          }
+        }
 
-    // Regenerate slug if title was updated
-    if (title !== undefined) {
-      galleryItem.generateSlug();
-    }
+        // Upload new image to Cloudinary
+        const result = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: "gallery-images",
+              resource_type: "image",
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          stream.end(req.file.buffer);
+        });
+        imageUrl = result.secure_url;
+      } else if (image !== undefined) {
+        // If image URL is provided directly (not a file), use it
+        imageUrl = image;
+      }
 
-    await galleryItem.save();
+      // Update fields if provided
+      if (title_en !== undefined) galleryItem.title_en = title_en;
+      if (description_en !== undefined)
+        galleryItem.description_en = description_en;
+      if (title_ta !== undefined) galleryItem.title_ta = title_ta;
+      if (description_ta !== undefined)
+        galleryItem.description_ta = description_ta;
+      galleryItem.image = imageUrl; // Always update image (either new upload, new URL, or existing)
+      if (link !== undefined) galleryItem.link = link;
+      if (status !== undefined) galleryItem.status = status;
+      if (order !== undefined) galleryItem.order = order;
 
-    const updatedGalleryItem = await Gallery.findById(galleryItem._id).populate(
-      "author",
-      "name email"
-    );
+      await galleryItem.save();
 
-    res.json(updatedGalleryItem);
-  } catch (error) {
-    console.error(error);
-    if (error.code === 11000) {
-      res.status(400).json({ message: "Gallery item title already exists" });
-    } else {
+      res.json(galleryItem);
+    } catch (error) {
+      console.error(error);
       res.status(500).json({ message: "Server error" });
     }
   }
-});
+);
 
 // @desc    Delete a gallery item
 // @route   DELETE /api/gallery/:id
@@ -251,35 +411,20 @@ router.delete("/:id", protect, authorize("admin"), async (req, res) => {
       return res.status(404).json({ message: "Gallery item not found" });
     }
 
+    // Delete image from Cloudinary if exists
+    if (galleryItem.image) {
+      try {
+        const publicId = galleryItem.image.split("/").pop().split(".")[0];
+        await cloudinary.uploader.destroy(`gallery-images/${publicId}`);
+      } catch (cloudinaryError) {
+        console.error("Cloudinary delete error:", cloudinaryError);
+        // Don't fail the gallery deletion if image deletion fails
+      }
+    }
+
     await Gallery.deleteOne({ _id: req.params.id });
 
     res.json({ message: "Gallery item deleted successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// @desc    Publish/Unpublish a gallery item
-// @route   PATCH /api/gallery/:id/publish
-// @access  Private (Admin only)
-router.patch("/:id/publish", protect, authorize("admin"), async (req, res) => {
-  try {
-    const galleryItem = await Gallery.findById(req.params.id);
-
-    if (!galleryItem) {
-      return res.status(404).json({ message: "Gallery item not found" });
-    }
-
-    galleryItem.isPublished = !galleryItem.isPublished;
-    await galleryItem.save();
-
-    res.json({
-      message: `Gallery item ${
-        galleryItem.isPublished ? "published" : "unpublished"
-      } successfully`,
-      isPublished: galleryItem.isPublished,
-    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -296,7 +441,6 @@ router.get("/admin/all", protect, authorize("admin"), async (req, res) => {
     const skip = limit ? (page - 1) * limit : 0;
 
     const gallery = await Gallery.find()
-      .populate("author", "name email")
       .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)

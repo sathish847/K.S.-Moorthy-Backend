@@ -52,4 +52,4 @@ workSchema.index({ title: "text" });
 workSchema.index({ category: 1 });
 workSchema.index({ status: 1, createdAt: -1 });
 
-module.exports = mongoose.model("Work", workSchema);
+// module.exports = mongoose.model("Work", workSchema);

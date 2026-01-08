@@ -63,4 +63,4 @@ serviceSchema.methods.generateId = async function () {
 serviceSchema.index({ title: "text" });
 serviceSchema.index({ status: 1, createdAt: -1 });
 
-module.exports = mongoose.model("Service", serviceSchema);
+// module.exports = mongoose.model("Service", serviceSchema);

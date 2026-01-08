@@ -102,4 +102,4 @@ blogSchema.index({ title: "text", shortDescription: "text", tags: "text" });
 blogSchema.index({ category: 1 });
 blogSchema.index({ isPublished: 1, createdAt: -1 });
 
-module.exports = mongoose.model("Blog", blogSchema);
+// module.exports = mongoose.model("Blog", blogSchema);

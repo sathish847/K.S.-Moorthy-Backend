@@ -129,4 +129,4 @@ eventSchema.index({ title: "text", excerpt: "text", tags: "text" });
 eventSchema.index({ category: 1 });
 eventSchema.index({ status: 1, displayDate: -1 });
 
-module.exports = mongoose.model("Event", eventSchema);
+// module.exports = mongoose.model("Event", eventSchema);
